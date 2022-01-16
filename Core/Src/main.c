@@ -21,12 +21,14 @@
 #include "main.h"
 #include "dma.h"
 #include "spi.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "cmsis_os.h"
 #include "lcd.h"
+#include "lv_port_disp.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,10 +94,36 @@ void Led_Task(void *argument)
 void Lcd_Task(void *argument)
 {
 	LCD_Init();
-	LCD_Clear(BLUE);
+
+	lv_init();
+	lv_port_disp_init();//lvgl 显示接口初始化,放在 lv_init()的后面
+	
+	lv_style_t style1;
+	lv_style_init(&style1);
+	lv_style_set_bg_color(&style1, LV_STATE_DEFAULT,LV_COLOR_BLACK);
+	lv_style_set_border_width(&style1,LV_STATE_DEFAULT, 5);
+	lv_style_set_border_color(&style1,LV_STATE_DEFAULT, LV_COLOR_BLUE);
+	
+	lv_style_t style2;
+	lv_style_init(&style2);
+	lv_style_set_bg_color(&style2, LV_STATE_DEFAULT,LV_COLOR_BLACK);
+	lv_style_set_border_width(&style2,LV_STATE_DEFAULT, 5);
+	lv_style_set_border_color(&style2,LV_STATE_DEFAULT, LV_COLOR_GREEN);
+	
+	lv_obj_t* bgk1 = lv_obj_create(lv_scr_act(), NULL);//创建对象
+	lv_obj_set_pos(bgk1,0,0);
+	lv_obj_set_size(bgk1, 120, 120);//设置覆盖大小
+	lv_obj_add_style(bgk1,LV_STATE_DEFAULT, &style1);
+	
+	
+	lv_obj_t* bgk2 = lv_obj_create(lv_scr_act(), NULL);//创建对象
+	lv_obj_set_pos(bgk2,120,120);
+	lv_obj_set_size(bgk2, 120, 120);//设置覆盖大小	
+	lv_obj_add_style(bgk2,LV_STATE_DEFAULT, &style2);
+	
 	while(1)
 	{
-		
+		lv_task_handler();
 		osDelay(1000);
 	}
 }
@@ -131,6 +159,7 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_SPI2_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 	osKernelInitialize();
 	
@@ -160,6 +189,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -187,6 +217,12 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
