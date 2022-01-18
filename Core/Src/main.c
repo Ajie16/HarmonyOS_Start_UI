@@ -20,6 +20,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "fatfs.h"
+#include "sdmmc.h"
 #include "spi.h"
 #include "usart.h"
 #include "gpio.h"
@@ -29,10 +31,17 @@
 #include "cmsis_os.h"
 #include "lcd.h"
 #include "lv_port_disp.h"
+#include "lv_port_fs.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+/* Private variables ---------------------------------------------------------*/
+
+/* USER CODE BEGIN PV */
+FATFS   fs;			/* FATFS 文件系统对象 */
+FRESULT fr; 		/* FATFS API 返回值 */
+/* USER CODE END PV */
 
 /* USER CODE END PTD */
 
@@ -93,33 +102,31 @@ void Led_Task(void *argument)
 
 void Lcd_Task(void *argument)
 {
+	lv_fs_res_t fs_res=LV_FS_RES_NOT_IMP;
 	LCD_Init();
-
 	lv_init();
 	lv_port_disp_init();//lvgl 显示接口初始化,放在 lv_init()的后面
+	lv_port_fs_init();
+	
+	
+	lv_fs_file_t *file1 = lv_mem_alloc(sizeof(lv_fs_file_t *));
+	fs_res=lv_fs_open(file1,"S:/lvgl.txt",LV_FS_MODE_WR | LV_FS_MODE_RD);
+	if(fs_res != LV_FS_RES_OK)
+		printf("open error! code:%d\r\n",fs_res);
+	fs_res=lv_fs_write(file1,"test",4,NULL);
+	if(fs_res != LV_FS_RES_OK)
+		printf("write error! code:%d\r\n",fs_res);
+	
+	fs_res=lv_fs_close(file1);
+	if(fs_res != LV_FS_RES_OK)
+		printf("close error! code:%d\r\n",fs_res);
+	lv_mem_free(file1);
 	
 	lv_style_t style1;
 	lv_style_init(&style1);
 	lv_style_set_bg_color(&style1, LV_STATE_DEFAULT,LV_COLOR_BLACK);
 	lv_style_set_border_width(&style1,LV_STATE_DEFAULT, 5);
 	lv_style_set_border_color(&style1,LV_STATE_DEFAULT, LV_COLOR_BLUE);
-	
-	lv_style_t style2;
-	lv_style_init(&style2);
-	lv_style_set_bg_color(&style2, LV_STATE_DEFAULT,LV_COLOR_BLACK);
-	lv_style_set_border_width(&style2,LV_STATE_DEFAULT, 5);
-	lv_style_set_border_color(&style2,LV_STATE_DEFAULT, LV_COLOR_GREEN);
-	
-	lv_obj_t* bgk1 = lv_obj_create(lv_scr_act(), NULL);//创建对象
-	lv_obj_set_pos(bgk1,0,0);
-	lv_obj_set_size(bgk1, 120, 120);//设置覆盖大小
-	lv_obj_add_style(bgk1,LV_STATE_DEFAULT, &style1);
-	
-	
-	lv_obj_t* bgk2 = lv_obj_create(lv_scr_act(), NULL);//创建对象
-	lv_obj_set_pos(bgk2,120,120);
-	lv_obj_set_size(bgk2, 120, 120);//设置覆盖大小	
-	lv_obj_add_style(bgk2,LV_STATE_DEFAULT, &style2);
 	
 	while(1)
 	{
@@ -160,9 +167,10 @@ int main(void)
   MX_DMA_Init();
   MX_SPI2_Init();
   MX_USART1_UART_Init();
+  MX_SDMMC1_SD_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 	osKernelInitialize();
-	
   /* creation of uart_task */
 	DMA_SemaphoreHandle = osSemaphoreNew(1, 1, &DMA_Semaphore_attributes);
   led_taskHandle = osThreadNew(Led_Task, NULL, &led_task_attributes);
@@ -220,8 +228,16 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_SDMMC1;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+  PeriphClkInit.Sdmmc1ClockSelection = RCC_SDMMC1CLKSOURCE_PLLSAI1;
+  PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_HSE;
+  PeriphClkInit.PLLSAI1.PLLSAI1M = 1;
+  PeriphClkInit.PLLSAI1.PLLSAI1N = 8;
+  PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV7;
+  PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV2;
+  PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV2;
+  PeriphClkInit.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_48M2CLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();

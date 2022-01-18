@@ -4,13 +4,14 @@
  */
 
  /*Copy this file as "lv_port_fs.c" and set this value to "1" to enable content*/
-#if 0
+#if 1
 
 /*********************
  *      INCLUDES
  *********************/
-#include "lv_port_fs_template.h"
-
+#include "lv_port_fs.h"
+#include "fatfs.h"
+#include "usart.h"
 /*********************
  *      DEFINES
  *********************/
@@ -19,22 +20,8 @@
  *      TYPEDEFS
  **********************/
 
-/* Create a type to store the required data about your file.
- * If you are using a File System library
- * it already should have a File type.
- * For example FatFS has `FIL`. In this case use `typedef FIL file_t`*/
-typedef struct {
-    /*Add the data you need to store about a file*/
-    uint32_t dummy1;
-    uint32_t dummy2;
-}file_t;
-
-/*Similarly to `file_t` create a type for directory reading too */
-typedef struct {
-    /*Add the data you need to store about directory reading*/
-    uint32_t dummy1;
-    uint32_t dummy2;
-}dir_t;
+typedef FIL file_t;		// 把FIL类型定义成file_t
+typedef DIR dir_t; 		// 把DIR类型定义成dir_t
 
 /**********************
  *  STATIC PROTOTYPES
@@ -89,7 +76,7 @@ void lv_port_fs_init(void)
 
     /*Set up fields...*/
     fs_drv.file_size = sizeof(file_t);
-    fs_drv.letter = 'P';
+    fs_drv.letter = 'S';
     fs_drv.open_cb = fs_open;
     fs_drv.close_cb = fs_close;
     fs_drv.read_cb = fs_read;
@@ -117,8 +104,17 @@ void lv_port_fs_init(void)
 /* Initialize your Storage device and File system. */
 static void fs_init(void)
 {
-    /*E.g. for FatFS initialize the SD card and FatFS itself*/
 
+    /*E.g. for FatFS initialize the SD card and FatFS itself*/
+		static FATFS  fs;			/* FATFS 文件系统对象 */
+		FRESULT fr; 		/* FATFS API 返回值 */
+		printf("LVGL FATFS INIT...\r\n");
+		fr = f_mount(&fs, "", 0);
+		if (fr != FR_OK) 
+		{
+				printf("SD Card mounted error: (%d)\r\n", fr);
+		} else
+			printf("SD Card mounted successfully!\r\n");
     /*You code here*/
 }
 
@@ -133,26 +129,38 @@ static void fs_init(void)
 static lv_fs_res_t fs_open (lv_fs_drv_t * drv, void * file_p, const char * path, lv_fs_mode_t mode)
 {
     lv_fs_res_t res = LV_FS_RES_NOT_IMP;
-
+	  FRESULT fr; 		/* FATFS API 返回值 */
+	
     if(mode == LV_FS_MODE_WR)
     {
         /*Open a file for write*/
-
-        /* Add your code here*/
+				fr = f_open((FIL*)file_p, path, LV_FS_MODE_WR);
+				if(fr != FR_OK)
+				{
+					printf("open file \"%s\" error : %d\r\n", path, fr);
+				}else
+				res = LV_FS_RES_OK;
     }
     else if(mode == LV_FS_MODE_RD)
     {
         /*Open a file for read*/
-
-        /* Add your code here*/
-    }
+				fr = f_open((FIL*)file_p, path, LV_FS_MODE_RD);
+				if(fr != FR_OK)
+				{
+					printf("open file \"%s\" error : %d\r\n", path, fr);
+				}else
+					res = LV_FS_RES_OK;
+		}
     else if(mode == (LV_FS_MODE_WR | LV_FS_MODE_RD))
     {
         /*Open a file for read and write*/
-
-        /* Add your code here*/
+				fr = f_open((FIL*)file_p, path, LV_FS_MODE_WR | LV_FS_MODE_RD);
+				if(fr != FR_OK)
+				{
+					printf("open file \"%s\" error : %d\r\n", path, fr);
+				}else
+				res = LV_FS_RES_OK;
     }
-
     return res;
 }
 
@@ -166,10 +174,16 @@ static lv_fs_res_t fs_open (lv_fs_drv_t * drv, void * file_p, const char * path,
 static lv_fs_res_t fs_close (lv_fs_drv_t * drv, void * file_p)
 {
     lv_fs_res_t res = LV_FS_RES_NOT_IMP;
-
-    /* Add your code here*/
-
-    return res;
+		FRESULT fr; 		/* FATFS API 返回值 */
+		printf("close file\r\n");
+		/* 操作完成，关闭文件 */
+		fr = f_close((FIL*)file_p);
+		if(fr != FR_OK)
+		{
+			printf("close file error! error : %d\r\n", fr);
+		}else
+			res = LV_FS_RES_OK;
+			return res;
 }
 
 /**
@@ -184,11 +198,16 @@ static lv_fs_res_t fs_close (lv_fs_drv_t * drv, void * file_p)
  */
 static lv_fs_res_t fs_read (lv_fs_drv_t * drv, void * file_p, void * buf, uint32_t btr, uint32_t * br)
 {
-    lv_fs_res_t res = LV_FS_RES_NOT_IMP;
+  lv_fs_res_t res = LV_FS_RES_NOT_IMP;
+	FRESULT fr; 		/* FATFS API 返回值 */
 
-    /* Add your code here*/
-
-    return res;
+	fr = f_read((FIL*)file_p, buf, btr, br);
+  if (fr != FR_OK) 
+	{
+    printf("read file error! error : %d\r\n", fr);
+  }else
+		res = LV_FS_RES_OK;
+   return res;
 }
 
 /**
@@ -202,11 +221,16 @@ static lv_fs_res_t fs_read (lv_fs_drv_t * drv, void * file_p, void * buf, uint32
  */
 static lv_fs_res_t fs_write(lv_fs_drv_t * drv, void * file_p, const void * buf, uint32_t btw, uint32_t * bw)
 {
-    lv_fs_res_t res = LV_FS_RES_NOT_IMP;
+  lv_fs_res_t res = LV_FS_RES_NOT_IMP;
+	FRESULT fr; 		/* FATFS API 返回值 */
+	fr = f_write((FIL*)file_p, buf, btw, bw);
+  if (fr != FR_OK) 
+	{
+    	printf("read file error! error : %d\r\n", fr);
+  }else
+	res = LV_FS_RES_OK;
 
-    /* Add your code here*/
-
-    return res;
+  return res;
 }
 
 /**
@@ -219,11 +243,16 @@ static lv_fs_res_t fs_write(lv_fs_drv_t * drv, void * file_p, const void * buf, 
  */
 static lv_fs_res_t fs_seek (lv_fs_drv_t * drv, void * file_p, uint32_t pos)
 {
-    lv_fs_res_t res = LV_FS_RES_NOT_IMP;
-
-    /* Add your code here*/
-
-    return res;
+  lv_fs_res_t res = LV_FS_RES_NOT_IMP;
+	FRESULT fr; 		/* FATFS API 返回值 */
+	fr = f_lseek((FIL*)file_p, pos);
+  if (fr != FR_OK) 
+	{
+    printf("read file error! error : %d\r\n", fr);
+  }else
+	res = LV_FS_RES_OK;
+	
+  return res;
 }
 
 /**

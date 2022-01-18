@@ -280,7 +280,7 @@ extern "C" {
  * KEIL and IAR compiler, the program can`t get the end address of SRAM.
  */
 #define BOARD_SRAM_START_ADDR     0x20000000
-#define BOARD_SRAM_SIZE_KB       40
+#define BOARD_SRAM_SIZE_KB      	64
 #define BOARD_SRAM_END_ADDR       (BOARD_SRAM_START_ADDR + 1024 * BOARD_SRAM_SIZE_KB)
 
 /**
