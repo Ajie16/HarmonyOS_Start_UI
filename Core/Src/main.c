@@ -100,39 +100,68 @@ void Led_Task(void *argument)
 	}
 }
 
+
+lv_img_dsc_t testimg1 = {
+	.header.always_zero = 0,
+	.header.w = 150,
+	.header.h = 60,
+	.data_size = 150 * 60 * 2,
+	.header.cf = LV_IMG_CF_TRUE_COLOR,
+};
+
 void Lcd_Task(void *argument)
 {
 	lv_fs_res_t fs_res=LV_FS_RES_NOT_IMP;
+	lv_fs_file_t lv_file;
+	int offset;
 	LCD_Init();
 	lv_init();
 	lv_port_disp_init();//lvgl 显示接口初始化,放在 lv_init()的后面
 	lv_port_fs_init();
 	
-	
-	lv_fs_file_t *file1 = lv_mem_alloc(sizeof(lv_fs_file_t *));
-	fs_res=lv_fs_open(file1,"S:/lvgl.txt",LV_FS_MODE_WR | LV_FS_MODE_RD);
-	if(fs_res != LV_FS_RES_OK)
-		printf("open error! code:%d\r\n",fs_res);
-	fs_res=lv_fs_write(file1,"test",4,NULL);
-	if(fs_res != LV_FS_RES_OK)
-		printf("write error! code:%d\r\n",fs_res);
-	
-	fs_res=lv_fs_close(file1);
-	if(fs_res != LV_FS_RES_OK)
-		printf("close error! code:%d\r\n",fs_res);
-	lv_mem_free(file1);
-	
 	lv_style_t style1;
 	lv_style_init(&style1);
 	lv_style_set_bg_color(&style1, LV_STATE_DEFAULT,LV_COLOR_BLACK);
-	lv_style_set_border_width(&style1,LV_STATE_DEFAULT, 5);
-	lv_style_set_border_color(&style1,LV_STATE_DEFAULT, LV_COLOR_BLUE);
+	lv_style_set_border_width(&style1,LV_STATE_DEFAULT, 0);
+	lv_style_set_radius(&style1,LV_STATE_DEFAULT,0);
+	
+	lv_obj_t* bkg = lv_obj_create(lv_scr_act(),NULL);
+	lv_obj_set_pos(bkg,0,0);
+	lv_obj_set_size(bkg,240,240);
+	lv_obj_add_style(bkg,LV_OBJ_PART_MAIN,&style1);
+	
+	lv_obj_t* homonoryimg = lv_img_create(lv_scr_act(), NULL);
 	
 	while(1)
 	{
-		lv_task_handler();
+		
+		uint8_t* framebuffer1 = (uint8_t*)lv_mem_alloc(sizeof(uint8_t)*18000);
+		fs_res = lv_fs_open(&lv_file, "S:/os.bin", LV_FS_MODE_RD| LV_FS_MODE_WR);
+		if ( fs_res != LV_FS_RES_OK )
+			printf( "LVGL FS open error. (%d)\r\n", fs_res );
+		offset = 0;
+		offset += 4; //从offset=4
+		lv_fs_seek(&lv_file, offset);
+
+		//计算bin文件里一共包含多少张图片，然后不断的给tft进行显示
+		for(int i = 0 ; i < 401 ; i++)
+		{
+			fs_res = lv_fs_read(&lv_file, (uint8_t *)framebuffer1, 18000,NULL);
+			testimg1.data = (const uint8_t *)framebuffer1;
+			lv_img_set_src(homonoryimg, &testimg1);
+			lv_obj_align(homonoryimg, NULL, LV_ALIGN_CENTER, 0, 0);
+
+			lv_task_handler();
+			offset += 18004;
+			fs_res = lv_fs_seek(&lv_file, offset);
+			osDelay(20);
+		}
+		lv_mem_free(framebuffer1);
+		framebuffer1 = NULL;
+		lv_fs_close(&lv_file);
 		osDelay(1000);
 	}
+
 }
 /* USER CODE END 0 */
 

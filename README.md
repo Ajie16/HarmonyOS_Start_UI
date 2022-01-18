@@ -9,6 +9,6 @@ Based on LiteOS &amp; LVGL realized the HarmonyOS Start UI
 
 - [x] 小熊派移植华为 LiteOS-M（基于MDK）：[链接](https://blog.csdn.net/qq_45396672/article/details/122396806)；
 - [x] 小熊派基于 LiteOS 移植 LVGL 显示接口：[链接](https://blog.csdn.net/qq_45396672/article/details/122529954)；
-- [x] 小熊派基于 LiteOS 移植 LVGL 文件系统：[链接]()；
+- [x] 小熊派基于 LiteOS 移植 LVGL 文件系统：[链接](https://blog.csdn.net/qq_45396672/article/details/122559765)；
 - [x] 小熊派实现鸿蒙开机界面（LiteOS+LVGL）：[链接]()；
 
